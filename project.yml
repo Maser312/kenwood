@@ -1,6 +1,7 @@
 name: KENWOODRemoteFixed
 options:
   bundleIdPrefix: com.jvckenwood.jkts
+  xcodeVersion: "15.4"
   deploymentTarget:
     iOS: "15.0"
 targets:
