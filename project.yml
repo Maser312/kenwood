@@ -4,6 +4,7 @@ options:
   xcodeVersion: "15.4"
   deploymentTarget:
     iOS: "15.0"
+  projectFormat: "Xcode 15.4"
 targets:
   KENWOODRemoteFixed:
     type: application
