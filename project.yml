@@ -1,0 +1,21 @@
+name: KENWOODRemoteFixed
+options:
+  bundleIdPrefix: com.jvckenwood.jkts
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  KENWOODRemoteFixed:
+    type: application
+    platform: iOS
+    sources:
+      - path: KENWOODRemoteFixed
+    info:
+      path: KENWOODRemoteFixed/Info.plist
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.jvckenwood.jkts.kwdremoteapp
+      PRODUCT_NAME: KENWOODRemoteFixed
+      SWIFT_VERSION: 5.0
+      TARGETED_DEVICE_FAMILY: "1"
+      CODE_SIGNING_ALLOWED: NO
+      CODE_SIGNING_REQUIRED: NO
+      CODE_SIGN_IDENTITY: ""
