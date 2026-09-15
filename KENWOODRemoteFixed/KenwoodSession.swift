@@ -1,8 +1,13 @@
 import Foundation
 import ExternalAccessory
 
-final class KenwoodSession: NSObject, StreamDelegate {
+final class KenwoodSession: NSObject, StreamDelegate, ObservableObject {
     static let shared = KenwoodSession()
+
+    @Published private(set) var status = "Не подключено"
+    @Published private(set) var accessoryName = ""
+    @Published private(set) var protocols = [String]()
+    @Published private(set) var isConnected = false
 
     private let supportedProtocols = [
         "com.jvckenwood.jkts.kwdremoteapp.comm.v1",
@@ -17,7 +22,6 @@ final class KenwoodSession: NSObject, StreamDelegate {
     private var session: EASession?
     private var retryWork: DispatchWorkItem?
     private var observersRegistered = false
-    private(set) var lastError = ""
 
     func start() {
         let manager = EAAccessoryManager.shared()
@@ -46,16 +50,24 @@ final class KenwoodSession: NSObject, StreamDelegate {
         retryWork?.cancel()
         retryWork = nil
         closeSession()
+        status = "Отключено"
     }
 
     private func connectToAvailableAccessory() {
         guard session == nil else { return }
 
         guard let accessory = EAAccessoryManager.shared().connectedAccessories.first else {
-            lastError = "KENWOOD не найден. Запусти iPod BT на магнитоле."
+            accessoryName = ""
+            protocols = []
+            isConnected = false
+            status = "KENWOOD не найден. На магнитоле включи Remote App → iOS → YES и iPod BT."
             return
         }
 
+        accessoryName = accessory.name
+        protocols = accessory.protocolStrings
+        isConnected = false
+        status = "KENWOOD найден: \(accessory.name). Открываем канал…"
         attemptSession(accessory, attempt: 0)
     }
 
@@ -67,7 +79,7 @@ final class KenwoodSession: NSObject, StreamDelegate {
         }
 
         if candidates.isEmpty {
-            lastError = "KENWOOD найден, ждём готовности протокола…"
+            status = "KENWOOD найден, но iAP-протокол ещё не готов. Повторяем…"
             scheduleRetry(for: accessory, attempt: attempt)
             return
         }
@@ -82,52 +94,50 @@ final class KenwoodSession: NSObject, StreamDelegate {
             newSession.outputStream?.delegate = self
 
             if let input = newSession.inputStream {
-                input.schedule(in: RunLoop.main, forMode: RunLoop.Mode.default)
+                input.schedule(in: RunLoop.main, forMode: .default)
                 input.open()
             }
 
             if let output = newSession.outputStream {
-                output.schedule(in: RunLoop.main, forMode: RunLoop.Mode.default)
+                output.schedule(in: RunLoop.main, forMode: .default)
                 output.open()
             }
 
-            lastError = "Подключено"
+            isConnected = true
+            status = "Подключено по \(proto)"
             return
         }
 
-        lastError = "EASession пока недоступен, повторяем…"
+        status = "KENWOOD найден, EASession пока недоступен. Повторяем…"
         scheduleRetry(for: accessory, attempt: attempt)
     }
 
     private func scheduleRetry(for accessory: EAAccessory, attempt: Int) {
-        guard attempt < 20 else {
-            lastError = "Не удалось открыть соединение KENWOOD."
+        guard attempt < 30 else {
+            isConnected = false
+            status = "Не удалось открыть EASession. Перезапусти Remote App на магнитоле."
             return
         }
 
         retryWork?.cancel()
-
         let delay = min(5.0, 0.5 + Double(attempt) * 0.25)
-        let work = DispatchWorkItem { [weak self, weak accessory] in
-            guard let self, let accessory else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
             self.attemptSession(accessory, attempt: attempt + 1)
         }
-
         retryWork = work
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + delay,
-            execute: work
-        )
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     private func closeSession() {
         if let current = session {
             current.inputStream?.close()
             current.outputStream?.close()
-            current.inputStream?.remove(from: RunLoop.main, forMode: RunLoop.Mode.default)
-            current.outputStream?.remove(from: RunLoop.main, forMode: RunLoop.Mode.default)
+            current.inputStream?.remove(from: .main, forMode: .default)
+            current.outputStream?.remove(from: .main, forMode: .default)
         }
         session = nil
+        isConnected = false
     }
 
     @objc private func accessoryConnected(_ notification: Notification) {
@@ -136,19 +146,31 @@ final class KenwoodSession: NSObject, StreamDelegate {
 
     @objc private func accessoryDisconnected(_ notification: Notification) {
         closeSession()
-        lastError = "KENWOOD отключён"
+        accessoryName = ""
+        protocols = []
+        status = "KENWOOD отключён"
     }
 
     func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
         switch eventCode {
+        case .openCompleted:
+            if session != nil {
+                isConnected = true
+            }
         case .errorOccurred:
             closeSession()
-            lastError = "Ошибка соединения с KENWOOD"
+            status = "Ошибка потока KENWOOD — повторяем подключение…"
+            connectToAvailableAccessory()
         case .endEncountered:
             closeSession()
-            lastError = "Соединение с KENWOOD закрыто"
+            status = "Соединение закрыто — повторяем подключение…"
+            connectToAvailableAccessory()
         default:
             break
         }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
