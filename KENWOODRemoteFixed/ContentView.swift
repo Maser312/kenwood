@@ -1,38 +1,57 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var status = "Проверяем подключение…"
+    @StateObject private var kenwood = KenwoodSession.shared
 
     var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "car.fill")
-                .font(.system(size: 52))
+        NavigationView {
+            List {
+                Section("Состояние") {
+                    HStack {
+                        Circle()
+                            .fill(kenwood.isConnected ? Color.green : Color.red)
+                            .frame(width: 12, height: 12)
+                        Text(kenwood.isConnected ? "Подключено" : "Не подключено")
+                    }
+                    Text(kenwood.status)
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
 
-            Text("KENWOOD Remote")
-                .font(.title2)
+                if !kenwood.accessoryName.isEmpty {
+                    Section("Магнитола") {
+                        LabeledContent("Название", value: kenwood.accessoryName)
+                        LabeledContent("Протоколов", value: "\(kenwood.protocols.count)")
+                    }
 
-            Text(status)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                    Section("iAP-протоколы") {
+                        ForEach(kenwood.protocols, id: \.self) { proto in
+                            Text(proto)
+                                .font(.caption)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
 
-            Button("Проверить подключение") {
-                checkConnection()
+                Section {
+                    Button("Проверить подключение") {
+                        kenwood.start()
+                    }
+                    Button("Отключить") {
+                        kenwood.stop()
+                    }
+                }
+
+                Section("Как подключить") {
+                    Text("1. На KMM-305BT открой Remote App → iOS → YES.")
+                    Text("2. Выбери источник iPod BT.")
+                    Text("3. Запусти приложение и нажми «Проверить подключение».")
+                }
             }
-            .buttonStyle(.borderedProminent)
-
-            Text("На магнитоле: Remote App → iOS → YES, затем источник iPod BT.")
-                .font(.footnote)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+            .navigationTitle("KENWOOD Remote")
         }
-        .padding()
         .onAppear {
-            checkConnection()
+            kenwood.start()
         }
-    }
-
-    private func checkConnection() {
-        KenwoodSession.shared.start()
-        status = KenwoodSession.shared.lastError
     }
 }
