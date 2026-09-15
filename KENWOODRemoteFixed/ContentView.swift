@@ -20,8 +20,18 @@ struct ContentView: View {
 
                 if !kenwood.accessoryName.isEmpty {
                     Section("Магнитола") {
-                        LabeledContent("Название", value: kenwood.accessoryName)
-                        LabeledContent("Протоколов", value: "\(kenwood.protocols.count)")
+                        HStack {
+                            Text("Название")
+                            Spacer()
+                            Text(kenwood.accessoryName)
+                                .foregroundColor(.secondary)
+                        }
+                        HStack {
+                            Text("Протоколов")
+                            Spacer()
+                            Text("\(kenwood.protocols.count)")
+                                .foregroundColor(.secondary)
+                        }
                     }
 
                     Section("iAP-протоколы") {
@@ -42,10 +52,10 @@ struct ContentView: View {
                     }
                 }
 
-                Section("Как подключить") {
-                    Text("1. На KMM-305BT открой Remote App → iOS → YES.")
-                    Text("2. Выбери источник iPod BT.")
-                    Text("3. Запусти приложение и нажми «Проверить подключение».")
+                Section("Подключение KMM-BT305") {
+                    Text("1. На магнитоле: Remote App → SELECT → IOS → YES.")
+                    Text("2. Выбери источник iPod BT. Для USB используй iPod USB.")
+                    Text("3. Запусти приложение. Соединение устанавливается автоматически.")
                 }
             }
             .navigationTitle("KENWOOD Remote")
