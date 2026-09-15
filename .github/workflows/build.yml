@@ -11,14 +11,21 @@ jobs:
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
+      - name: Fix Xcode project format for Xcode 15.4
+        run: |
+          sed -i '' 's/objectVersion = 77;/objectVersion = 56;/' KENWOODRemoteFixed.xcodeproj/project.pbxproj
       - name: Build unsigned IPA
         run: |
+          set -e
+          xcodebuild -version
           xcodebuild -project KENWOODRemoteFixed.xcodeproj -scheme KENWOODRemoteFixed -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+          rm -rf Payload KENWOODRemoteFixed.ipa
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/KENWOODRemoteFixed.app Payload/
           /usr/bin/zip -qry KENWOODRemoteFixed.ipa Payload
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: KENWOODRemoteFixed-ipa
+          name: KENWOODRemoteFixed-IPA
           path: KENWOODRemoteFixed.ipa
+          if-no-files-found: error
