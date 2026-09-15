@@ -1,28 +1,65 @@
 name: Build KENWOOD Remote
+
 on:
   push:
+    branches: [main]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
       - name: Install XcodeGen
         run: brew install xcodegen
+
       - name: Generate Xcode project
         run: xcodegen generate
-      - name: Fix Xcode project format for Xcode 15.4
+
+      - name: Fix Xcode project format
         run: |
           sed -i '' 's/objectVersion = 77;/objectVersion = 56;/' KENWOODRemoteFixed.xcodeproj/project.pbxproj
-      - name: Build unsigned IPA
+          sed -i '' '/LastSwiftUpdateCheck = 2500;/d' KENWOODRemoteFixed.xcodeproj/project.pbxproj
+          sed -i '' '/LastUpgradeCheck = 2500;/d' KENWOODRemoteFixed.xcodeproj/project.pbxproj
+
+      - name: Build unsigned iOS app
         run: |
-          set -e
+          set -euxo pipefail
           xcodebuild -version
-          xcodebuild -project KENWOODRemoteFixed.xcodeproj -scheme KENWOODRemoteFixed -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+          xcodebuild \
+            -project KENWOODRemoteFixed.xcodeproj \
+            -scheme KENWOODRemoteFixed \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            clean build
+
+      - name: Validate app before packaging
+        run: |
+          set -euxo pipefail
+          APP="build/Build/Products/Release-iphoneos/KENWOODRemoteFixed.app"
+          EXEC="$APP/KENWOODRemoteFixed"
+          test -d "$APP"
+          test -f "$EXEC"
+          file "$EXEC"
+          test "$(stat -f%z "$EXEC")" -gt 100000
+          codesign -dvv "$APP" 2>&1 || true
+          du -sh "$APP"
+
+      - name: Package IPA
+        run: |
+          set -euxo pipefail
           rm -rf Payload KENWOODRemoteFixed.ipa
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/KENWOODRemoteFixed.app Payload/
           /usr/bin/zip -qry KENWOODRemoteFixed.ipa Payload
+          unzip -t KENWOODRemoteFixed.ipa
+          test "$(stat -f%z KENWOODRemoteFixed.ipa)" -gt 1000000
+          ls -lh KENWOODRemoteFixed.ipa
+
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
