@@ -126,7 +126,6 @@ final class KenwoodSession: NSObject, StreamDelegate {
             current.outputStream?.close()
             current.inputStream?.remove(from: RunLoop.main, forMode: RunLoop.Mode.default)
             current.outputStream?.remove(from: RunLoop.main, forMode: RunLoop.Mode.default)
-            current.close()
         }
         session = nil
     }
